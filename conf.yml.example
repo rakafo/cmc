@@ -1,0 +1,9 @@
+---
+cmc:
+  pro: foo
+  sandbox: foo
+  limit: 600
+gmail:
+  user: foo
+  pass: foo
+
