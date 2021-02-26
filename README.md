@@ -5,11 +5,15 @@ Collection of scripts to periodically:
 * update excel with new data;
 
 # Usage
-By default runs collection at 08:00 (or when available daily).
+Uses anacron to run scripts as defined in setup.yml
 
-By default updates excel at 8:30 (or when available daily).
+To run manually:
+* `python3 main.py query_and_store` - query cmc api and store data into sqlite. Runs at 08:00 by default.
+* `python3 main.py update_excel` - query sqlite and update excel. Runs at 08:30 by default.
+
 
 # Centos8 installation
-* copy scripts to /opt/cmc or change setup.yml parameters
+* copy dir to /opt/cmc or change setup.yml parameters;
+* provide relevant credentials in conf.yml  
 * `dnf install ansible python38`
 * `ansible-playbook main.yml`
