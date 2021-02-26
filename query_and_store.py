@@ -1,31 +1,31 @@
-from sqlalchemy import create_engine, text
+import sqlalchemy
 import os
 import auxiliary
 import requests
-from typing import List
+from typing import List, Union
 import json
 import logging
-
-args = {}
+import types
 
 """
 query cmc and store results in sqlite db.
+api reference - https://coinmarketcap.com/api/documentation/v1/#operation/getV2CryptocurrencyInfo
 """
 
+init_args = types.SimpleNamespace()
+limit = 600
+mode = "production"
 
-def init(init_args: dict):
+
+def init(args: types.SimpleNamespace) -> None:
     """
     start point
     """
-    global args
-    args = init_args
+    global init_args
+    init_args = args
 
-    logging.basicConfig(
-        filename="query_and_store.py.log",
-        filemode="a+",
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        level=logging.DEBUG,
-    )
+    auxiliary.enable_logger("query_and_store", log_to_console=True)
+    logging.info("script started")
 
     if db_init():
         cmc_data = cmc_query()
@@ -36,20 +36,22 @@ def db_init() -> bool:
     """
     create a db or use existing
     """
-    if os.path.isfile(args["db"]):
+    if os.path.isfile(init_args.db):
         return True
     else:
-        with db_connect().connect() as conn:
-            conn.execute(text("CREATE TABLE db (id INTEGER PRIMARY KEY, data JSON)"))
+        engine = sqlalchemy.create_engine(f"sqlite:///{init_args.db}", echo=False)
+        with engine.connect() as conn:
+            conn.execute(
+                sqlalchemy.text(
+                    "CREATE TABLE db ( \
+                    symbol TEXT, \
+                    cmc_rank INTEGER, \
+                    price REAL, \
+                    name TEXT, \
+                    last_updated TEXT)"
+                )
+            )
             return True
-
-
-def db_connect():
-    """
-    get sqlite object
-    """
-    engine = create_engine(f"sqlite:///{args['db']}", echo=False)
-    return engine
 
 
 def cmc_query() -> List[dict]:
@@ -57,7 +59,7 @@ def cmc_query() -> List[dict]:
     query cmc for data
     """
     connection_info = {
-        "pro": {
+        "production": {
             "url": "https://pro-api.coinmarketcap.com",
             "api": auxiliary.get_conf()["cmc"]["pro"],
         },
@@ -70,12 +72,30 @@ def cmc_query() -> List[dict]:
     headers = {
         "Accept": "application/json",
         "Accept-Encoding": "deflate, gzip",
-        "X-CMC_PRO_API_KEY": connection_info[args["mode"]]["api"],
+        "X-CMC_PRO_API_KEY": connection_info[mode]["api"],
     }
-    url = f"{connection_info[args['mode']]['url']}/v1/cryptocurrency/listings/latest?limit={args['limit']}"
+    url = f"{connection_info[mode]['url']}/v1/cryptocurrency/listings/latest?limit={limit}"
     r = requests.get(url, headers=headers)
     response = r.json()["data"]
     return response
+
+
+def parse_cmc_data(i: json) -> Union[dict, bool]:
+    """
+    parse and validate data received from cmc before storing
+    :return either all local variables or False if validation fails
+    """
+    name = i["name"]
+    symbol = i["symbol"]
+    price = i["quote"]["USD"]["price"]
+    cmc_rank = i["cmc_rank"]
+    last_updated = i["quote"]["USD"]["last_updated"].split("T")[0]  # leave only date
+
+    if not isinstance(price, float):
+        logging.error(f"bad price when fetching data: {locals()}")
+        return False
+
+    return locals()
 
 
 def db_insert_data(cmc_data: List[dict]) -> None:
@@ -86,8 +106,20 @@ def db_insert_data(cmc_data: List[dict]) -> None:
         print("nothing returned by cmc")
         exit(1)
 
-    with db_connect().connect() as conn:
+    engine = sqlalchemy.create_engine(f"sqlite:///{init_args.db}", echo=False)
+    with engine.connect() as conn:
         for i in cmc_data:
-            conn.execute(
-                text("INSERT INTO db (data) VALUES (:data)"), {"data": json.dumps(i)}
-            )
+            if i_parsed := parse_cmc_data(i):
+                conn.execute(
+                    sqlalchemy.text(
+                        "INSERT INTO db (name, symbol, price, cmc_rank, last_updated) \
+                        VALUES (:name, :symbol, :price, :cmc_rank, :last_updated)"
+                    ),
+                    {
+                        "name": i_parsed["name"],
+                        "symbol": i_parsed["symbol"],
+                        "price": i_parsed["price"],
+                        "cmc_rank": i_parsed["cmc_rank"],
+                        "last_updated": i_parsed["last_updated"],
+                    },
+                )

@@ -2,8 +2,9 @@
 cmc:
   pro: foo
   sandbox: foo
-  limit: 600
 gmail:
   user: foo
   pass: foo
-
+smb:
+  user: foo
+  pass: foo

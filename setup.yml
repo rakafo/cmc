@@ -1,0 +1,66 @@
+---
+- name: setup from zero
+  hosts: localhost
+  become: yes
+  vars:
+    create_venv: yes
+    create_anacron: yes
+    path_venv: /opt/venv
+    path_cmc: /opt/cmc
+  tasks:
+  
+    - name: check if {{ path_cmc }} exists
+      stat: 
+        path: "{{ path_cmc }}"
+      register: this
+      failed_when: not this.stat.exists
+      
+    - name: check if python3 exists
+      shell: which python3
+      register: this
+      failed_when: this.stdout is search("no python3")
+      changed_when: no
+    
+    - block:
+    
+        - name: create venv and packages
+          pip:
+            virtualenv: "{{ path_venv }}"
+            virtualenv_command: python3 -m venv
+            requirements: "{{ path_cmc }}/requirements.txt"
+            
+        - name: modify main.py to run from venv
+          lineinfile:
+            path: "{{ path_cmc }}/main.py"
+            insertbefore: BOF
+            regex: "^#!{{ path_venv }}/bin/python3"
+            line: "#!{{ path_venv }}/bin/python3"
+          
+        - name: set correct {{ path_cmc }} dac
+          file:
+            path: "{{ path_cmc }}"
+            mode: "0600"
+            recurse: yes
+          changed_when: no
+        
+        - name: set correct {{ path_cmc }}/*.py dac
+          file:
+            path: "{{ item }}"
+            mode: "0700"
+          with_fileglob: "{{ path_cmc }}/*.py*"
+          changed_when: no
+          
+      when: create_venv
+      
+    - block:
+    
+        - name: create daily anacron entry
+          copy:
+            content: |
+              #!/bin/bash
+              cd /opt/cmc && ./main.py query_and_store
+              cd /opt/cmc && ./main.py update_excel
+            dest: /etc/cron.daily/cmc
+            mode: "0700"
+            
+      when: create_anacron
