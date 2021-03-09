@@ -24,7 +24,7 @@ def main(args: types.SimpleNamespace) -> None:
     main_boilerplate(args)
 
     # pre-checks
-    available_db()
+    init_db()
 
     # logic
     r_cmc_query = cmc_query()
@@ -44,7 +44,7 @@ def main_boilerplate(args: types.SimpleNamespace) -> None:
     auxiliary.where_am_i()
 
 
-def available_db() -> None:
+def init_db() -> None:
     """
     create a db or use existing
     """

@@ -25,8 +25,8 @@ def main(args: types.SimpleNamespace) -> None:
     main_boilerplate(args)
 
     # pre-checks
-    available_db()
-    available_smb()
+    init_db()
+    init_smb()
 
     # logic
     rows = db_get_data()
@@ -45,7 +45,7 @@ def main_boilerplate(args: types.SimpleNamespace) -> None:
     auxiliary.where_am_i()
 
 
-def available_db() -> None:
+def init_db() -> None:
     """
     check if db exists
     """
@@ -55,7 +55,7 @@ def available_db() -> None:
         exit()
 
 
-def available_smb() -> None:
+def init_smb() -> None:
     """
     check and try to mount smb path where excel is
     """

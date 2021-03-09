@@ -4,6 +4,12 @@ Collection of scripts to periodically:
 * store results into sqlite;
 * update excel with new data;
 
+# Demo
+## query_and_store
+![screen1](screen1.png)
+## update_excel
+![screen2](screen2.png)
+
 # Usage
 Uses anacron to run scripts at times defined in setup.yml
 
