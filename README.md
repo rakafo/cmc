@@ -5,7 +5,7 @@ Collection of scripts to periodically:
 * update excel with new data;
 
 # Usage
-Uses anacron to run scripts as defined in setup.yml
+Uses anacron to run scripts at times defined in setup.yml
 
 To run manually:
 * `python3 main.py query_and_store` - query cmc api and store data into sqlite. Runs at 08:00 by default.

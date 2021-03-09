@@ -7,6 +7,7 @@ import types
 import datetime
 import pandas as pd
 import subprocess
+import inspect
 
 
 """
@@ -17,45 +18,50 @@ init_args = types.SimpleNamespace()
 excel_file = "/mnt/Price DB.xlsx"
 
 
-def init(args: types.SimpleNamespace) -> None:
+def main(args: types.SimpleNamespace) -> None:
     """
     start point
     """
+    main_boilerplate(args)
 
-    global init_args
-    init_args = args
+    # pre-checks
+    available_db()
+    available_smb()
 
-    auxiliary.enable_logger("update_excel", log_to_console=True)
-    logging.info("script started")
-
-    if not db_exists():
-        logging.error("db not available")
-        exit()
-    elif not smb_available():
-        logging.error("smb not available")
-        exit()
-
+    # logic
     rows = db_get_data()
     update_excel(rows)
 
 
-def db_exists() -> bool:
+def main_boilerplate(args: types.SimpleNamespace) -> None:
+    """
+    init logs, global vars
+    """
+    global init_args
+    init_args = args
+
+    auxiliary.enable_logger(inspect.stack()[1][1], log_to_console=True)
+    logging.info(f"{inspect.stack()[1][1]} logging started")
+    auxiliary.where_am_i()
+
+
+def available_db() -> None:
     """
     check if db exists
     """
-    if os.path.isfile(init_args.db):
-        return True
-    else:
-        return False
+    auxiliary.where_am_i()
+    if not os.path.isfile(init_args.db):
+        logging.error("db not available")
+        exit()
 
 
-def smb_available() -> bool:
+def available_smb() -> None:
     """
     check and try to mount smb path where excel is
     """
+    auxiliary.where_am_i()
     p = subprocess.run("mount | grep /mnt", shell=True, capture_output=True)
-    logging.debug(p)
-    if not p.stderr.decode():
+    if not p.stderr.decode():  # 0 if found, 1 if not found
         if not p.stdout.decode():
             user = auxiliary.get_conf()["smb"]["user"]
             password = auxiliary.get_conf()["smb"]["pass"]
@@ -67,22 +73,23 @@ def smb_available() -> bool:
             logging.info(p1)
             if not p1.stderr.decode():
                 logging.info("/mnt mounted")
-                return True
+                return
             else:
-                logging.error(p1.stderr.decode())
-                return False
+                logging.error(f"smb not available: {p1.stderr.decode()}")
+                exit()
         else:
             logging.info("/mnt already mounted")
-            return True
+            return
     else:
         logging.error(p.stderr.decode())
-        return False
+        exit()
 
 
 def db_get_data() -> List[sqlalchemy.engine.result.RowProxy]:
     """
     get todays cmc data.
     """
+    auxiliary.where_am_i()
     engine = sqlalchemy.create_engine(f"sqlite:///{init_args.db}", echo=False)
     with engine.connect() as conn:
         result = conn.execute(
@@ -101,13 +108,14 @@ def update_excel(rows: List[sqlalchemy.engine.result.RowProxy]) -> None:
     """
     update excel with sql info.
     """
+    auxiliary.where_am_i()
     try:
         writer = pd.ExcelWriter(excel_file, engine="xlsxwriter")
         df = pd.DataFrame(rows)
-        df.columns = ["symbol", "cmc rank", "price", "name", "last updated"]
-        df = df.astype({"cmc rank": int, "price": float})
+        df.columns = ["symbol", "name", "cmc_rank", "price", "last updated", "percent_change_24h", "percent_change_7d", "percent_change_30d"]
+        df = df.astype({"cmc_rank": int, "price": float})
         df.to_excel(writer, sheet_name="Sheet1", index=False)
         writer.save()
     except Exception as e:
         logging.error(e)
-        exit(1)
+        exit()
