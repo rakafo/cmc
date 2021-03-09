@@ -14,6 +14,6 @@ To run manually:
 
 # Centos8 installation
 * copy dir to /opt/cmc or change setup.yml parameters;
-* provide relevant credentials in conf.yml  
-* `dnf install ansible python38`
-* `ansible-playbook main.yml`
+* provide relevant credentials in setup.yml;
+* `dnf install ansible python38`;
+* `ansible-playbook setup.yml`;
