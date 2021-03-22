@@ -23,13 +23,15 @@ def main(args: types.SimpleNamespace) -> None:
     """
     main_boilerplate(args)
 
-    # pre-checks
+    # script logic
     init_db()
 
-    # logic
     r_cmc_query = cmc_query()
     r_parse_cmc_data = parse_cmc_data(r_cmc_query)
     db_insert_data(r_parse_cmc_data)
+
+    # post-run boilerplate
+    auxiliary.check_log(inspect.stack()[1][1])
 
 
 def main_boilerplate(args: types.SimpleNamespace) -> None:

@@ -4,7 +4,7 @@
   become: yes
   vars:
     create_venv: yes
-    create_anacron: yes
+    create_anacron: no
     path_venv: /opt/venv
     path_cmc: /opt/cmc
   tasks:

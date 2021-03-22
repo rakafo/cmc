@@ -24,13 +24,15 @@ def main(args: types.SimpleNamespace) -> None:
     """
     main_boilerplate(args)
 
-    # pre-checks
+    # script logic
     init_db()
     init_smb()
 
-    # logic
     rows = db_get_data()
     update_excel(rows)
+
+    # post-run boilerplate
+    auxiliary.check_log(inspect.stack()[1][1])
 
 
 def main_boilerplate(args: types.SimpleNamespace) -> None:

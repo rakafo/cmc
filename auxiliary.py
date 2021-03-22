@@ -4,15 +4,18 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import inspect
+import re
 
-__version__ = (1, 1, 0)
+__version__ = (1, 3, 0)
 
 
 def get_conf() -> yaml:
     """
-    load yaml config.
-    should be used for sensitive information so it's not tracked by git.
+    load yaml config
+    contains sensitive and regular data as dict
     """
+    where_am_i()
+
     with open("conf.yml", "r") as f:
         config = yaml.safe_load(f.read())
         return config
@@ -27,14 +30,32 @@ def enable_logger(fname: str, log_to_console: bool = False) -> None:
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
+    # log to file
     file_log_handler = logging.FileHandler(f"{fname}.log")
     file_log_handler.setFormatter(formatter)
     logger.addHandler(file_log_handler)
 
+    # log to console
     if log_to_console:
         stderr_log_handler = logging.StreamHandler()
         stderr_log_handler.setFormatter(formatter)
         logger.addHandler(stderr_log_handler)
+
+
+def check_log(fname: str) -> None:
+    """
+    check log file for specified keywords and send email on trigger
+    """
+    with open(fname) as log_file:
+        logs = log_file.read()
+
+    # get last run
+    logs_last_run = re.split("(.+? logging started\n)", logs)[-2:]  # () brackets so searched line is included
+    logs_last_run = "".join(logs_last_run)
+    if bool(re.search("WARNING|ERROR", logs_last_run)):
+        subject = f"{fname} execution log"
+        body = re.sub("\n", "<br>", logs_last_run)
+        send_email(subject, body)
 
 
 def where_am_i(debug: bool = True) -> None:
@@ -51,6 +72,8 @@ def send_email(subject: str, body: str) -> None:
     send a html formatted email.
     displays correctly in thunderbird.
     """
+    where_am_i()
+
     email_from = get_conf()["gmail"]["user"]
     email_pass = get_conf()["gmail"]["pass"]
     email_to = [get_conf()["gmail"]["user"]]
